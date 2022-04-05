@@ -8,17 +8,24 @@ function asrp(rsun, rsat)
     end=#
     
     SF = 1367
-    p_srp = SF/3*10^-8;
+    P_srp = SF/3*10^-8;
     Cr = 1.2;
   
-    As = 0.7;
-    m = 400;
+    As = 2.22;
+    m = 100;
     rsats = rsat - rsun
-    #asrp = 10^(-3)*(p_srp*Cr*As/m)*rsats/norm(rsats)   #positive as rsunsat is used 
 
-    asrp = -10^(-3)*(p_srp*Cr*As/m)*rsun/norm(rsun)^3*PropagatorConstants.AUtoKM^2
+    asrp = 10^(-3)*(P_srp*Cr*As/m)*rsats/norm(rsats)   #Initial model with fixed solar flux
+   
+    #Normalise and obtain ratio of AU/rsun
+    #d = PropagatorConstants.AUtoKM/norm(rsats)
+    #rs = rsats/norm(rsats)
 
-    #Check umbra penumbra instances!
+    #Solar radiation pressure acceleration with varying solar flux (Montenbruck)
+    #asrp = 10^(-3)*(P_srp*Cr*As/m)*rs*d^2 
+   
+    #=
+    #Check umbra penumbra instances
     α_umb = 0.264121687
     α_pen = 0.269007205
     
@@ -27,7 +34,7 @@ function asrp(rsun, rsat)
     sat_v = norm(rsat)*sqrt(abs(1-cos_ξ^2))
     x = PropagatorConstants.R_e/sind(α_pen)
     pen_v = tand(α_pen)*(x + sat_h)
-   #= if sat_v<=pen_v
+    if sat_v<=pen_v
         y = PropagatorConstants.R_e/sind(α_umb)
         umb_v = tand(α_umb)*(y-sat_h)
         if sat_v<=umb_v
@@ -38,5 +45,3 @@ function asrp(rsun, rsat)
     end =#
     return asrp
 end
-include("./PropagatorConstants.jl")
-asrp([ 1.3219e8,-0.6101e8, -0.2645e8],[1315.0823093944996, -6765.511976126983, 4000.0])

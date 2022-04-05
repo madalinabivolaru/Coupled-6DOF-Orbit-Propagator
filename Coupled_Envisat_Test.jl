@@ -1,5 +1,5 @@
-#First attempt at a coupled orbit and attitude PropagatorConstants
-#Third body was eliminated on account of complexity
+#Propagator test on ENVISAT Geometry as proposed by Tsinghua Paper
+
 using LinearAlgebra
 using OrdinaryDiffEq
 using DifferentialEquations
@@ -37,17 +37,21 @@ end
 function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
     #Define constants, body vectors and area of panels
     Lsp = 1.32
-    A = [1.11, 1.11, 1, 1, 1, 1, 1 , 1 ];
+    A = [71.12, 15.64, 22.92, 38.26 ];
+
+    #Normal in satellite reference frame
     nx = [1,0,0]
     nz = [0,0,1]
     ny = [0,1,0]
-    ry1 = Lsp*ny
-    ry2 = 0.5*ny
-    rx = 0.5*nx
-    rz = 0.5*nz
-    m = 100;
+    npanel = [-sind(22), cosd(22), 0]
+
+    rpanel = -6*ny #solar panel offset
+    ry = 1.7*ny 
+    rx = 1.0*nx
+    rz = 1.0*nz
+    m = 7991;
     #I = diagm([42.24,104.93, 105.82])
-    I = diagm([104.93,42.24, 105.82])
+    I = diagm([129180.25,16979.74, 124801.21]) #km m^2
     rho0 = [3.735*10^-12, 1.585*10^-12,6.967*10^-13, 1.454*10^-13,
     3.614*10^-14,1.17*10^-14, 5.245*10^-15,3.019*10^-15,
     9.518*10^-12, 2.418*10^-11, 7.248*10^-11, 2.789*10^-10, 5.464*10^-10 ]
@@ -150,45 +154,48 @@ function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
     ECItoBody = inv(At2*At1)
     vr_B = ECItoBody*vr
     vs_B = ECItoBody*(-rsat3s)/norm(rsat3s)
+    
     cosSx = dot(nx,vs_B)
     cosSy = dot(ny,vs_B)
     cosSz = dot(nz,vs_B)
-    cosSxx = dot(-nx,vs_B)
-    cosSyy = dot(-ny,vs_B)
-    cosSzz = dot(-nz,vs_B)
+    cosSp = dot(npanel,vs_B)
+
 
     cosTx = dot(nx,vr_B)/v_r
-    cosTx2 = dot(-nx,vr_B)/v_r
     cosTy = dot(ny,vr_B)/v_r
-    cosTy2 = dot(-ny,vr_B)/v_r
     cosTz = dot(nz,vr_B)/v_r
-    cosTz2 = dot(-nz,vr_B)/v_r
+    cosTp = dot(npanel,vr_B)/v_r
+
     #print(cosTx)
     #Drag coupled with attitude
     #Change As of asrp
     #asrp = -10^(-3)*(p_srp*Cr*As/m)*rsun/norm(rsun)^3*PropagatorConstants.AUtoKM^2
-    Drag = -10^3*0.5*rho*PropagatorConstants.C_d*(1.11*2*max(cosTx,0)+ max(cosTx,0) + max(cosTx,0)+max(cosTy,0)+max(cosTy,0)+max(cosTz,0)+max(cosTz,0))/m * v_r^2 * vr/v_r;
+    Drag = -10^3*0.5*rho*PropagatorConstants.C_d*(A[1]*max(cosTp,0)+A[1]*max(-cosTp,0) + A[3]*max(cosTx,0) + A[3]*max(-cosTx,0) +
+            A[2]*max(cosTy,0) + A[2]*max(-cosTy,0) + A[4]*max(cosTz,0) + A[4]*max(-cosTz,0))/m * v_r^2 * vr/v_r;
 
     #Fsrp = -10^(-3)*p_srp*Cr*vs_B/norm(vs_B)*(4*max(cosSx,0)+2*max(cosSy,0)+2*max(cosSx,0))
     #asrp = inv(ECItoBody)*(Fsrp/m)
-    As = 1
+    #As = 1
     rsats = r-rsun
-    asrp = 10^(-3)*(p_srp*Cr*(1.11*2*max(cosSx,0)+ max(cosSx,0) + (1.11*2+1)*max(cosSxx,0)+max(cosSy,0)+max(cosSyy,0)+max(cosSz,0)+max(cosSzz,0))/m)*rsats/norm(rsats)
-    Fs = [(-10^(-3)*p_srp*Cr*vs_B/norm(vs_B))*max(cosSx,0), (-10^(-3)*p_srp*Cr*vs_B/norm(vs_B))*max(cosSy,0), (-10^(-3)*p_srp*Cr*vs_B/norm(vs_B))*max(cosSz,0),
-           (-10^(-3)*p_srp*Cr*vs_B/norm(vs_B))*max(cosSxx,0), (-10^(-3)*p_srp*Cr*vs_B/norm(vs_B))*max(cosSyy,0), (-10^(-3)*p_srp*Cr*vs_B/norm(vs_B))*max(cosSzz,0)]
-    #Drag components for torques
-    Fd1 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(1.11*max(cosTx,0)) 
-    Fd3 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(max(cosTx,0))
-    Fd32 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(max(cosTx2,0))
-    Fd2 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(max(cosTy,0))
-    Fd22 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(max(cosTy2,0))
-    Fd4 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(max(cosTz,0))
-    Fd42 = -10^3*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*(max(cosTz2,0))
+    asrp = 10^(-3)*(p_srp*Cr*(A[1]*max(cosSp,0)+A[1]*max(-cosSp,0) + A[3]*max(cosSx,0) + A[3]*max(-cosSx,0) +
+            A[2]*max(cosSy,0) + A[2]*max(-cosSy,0) + A[4]*max(cosSz,0) + A[4]*max(-cosSz,0))/m)*rsats/norm(rsats)
 
-    Ld = 1/m*(cross(ry1, Fd1)+cross(-ry1, Fd1)+cross(ry2, Fd2) + cross(-ry2, Fd2) + cross(rx, Fd3) + cross(-rx, Fd3) + cross(rz, Fd4) + cross(rz, Fd4))
+    Fs = [(-p_srp*Cr*vs_B)*A[1]*max(cosSp,0), (-p_srp*Cr*vs_B)*A[1]*max(-cosSp,0), (-p_srp*Cr*vs_B)*A[3]*max(cosSx,0),
+           (-p_srp*Cr*vs_B)*A[3]*max(-cosSx,0), (-p_srp*Cr*vs_B)*A[2]*max(cosSy,0), (-p_srp*Cr*vs_B)*A[2]*max(-cosSy,0),
+           (-p_srp*Cr*vs_B)*A[4]*max(cosSz,0), (-p_srp*Cr*vs_B)*A[4]*max(-cosSz,0)]
+    
+           #Drag components for torques
+    Fd = [-10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[1]*max(cosTp,0), -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[1]*max(-cosTp,0),
+            -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[3]*max(cosTx,0), -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[3]*max(-cosTx,0),
+            -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[2]*max(cosTy,0), -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[2]*max(-cosTy,0),
+            -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[4]*max(cosTz,0), -10^6*0.5*rho*PropagatorConstants.C_d*v_r*vr_B*A[4]*max(-cosTz,0)]
+
+    Ld = 1/m*(cross(rpanel, Fd[1]) + cross(rpanel, Fd[2]) + cross(ry, Fd[5]) + cross(-ry, Fd[6]) + cross(rx, Fd[3]) + cross(-rx, Fd[4]) +
+            cross(rz, Fd[7]) + cross(rz, Fd[8]))
     #print(Ld)
-    Lsrp = cross(ry1, Fs[1]) +cross(-ry1, Fs[4])+cross(ry2, Fs[2]) + cross(-ry2, Fs[5]) + cross(rx, Fs[1]) + cross(-rx, Fs[4]) + cross(rz, Fs[3]) + cross(-rz, Fs[6])
-    #print(Fs)
+    Lsrp = cross(rpanel, Fs[1]) + cross(rpanel, Fs[2]) + cross(ry, Fs[5]) + cross(-ry, Fs[6]) + cross(rx, Fs[3]) + cross(-rx, Fs[4]) +
+             cross(rz, Fs[7]) + cross(rz, Fs[8])
+    #print(Lsrp)
     #Attitude 
     ωx, ωy, ωz = ω[1], ω[2], ω[3]
 
@@ -206,17 +213,18 @@ function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
     #print(length(transpose(0.5 .* Ω* transpose(q)[:])[:]))
     #print(length(transpose(I^-1*(transpose(Ld)[:]-cross(transpose(ω)[:],I*transpose(ω)[:])))[:]))
     dy[19:22] = transpose(0.5 .* Ω* transpose(q)[:])[:]
-    dy[23:25] = transpose(I^-1*(transpose(Ld+Lsrp)[:]-cross(transpose(ω)[:],I*transpose(ω)[:])))[:]
+    dy[23:25] = transpose(I^-1*(transpose(Lsrp+Ld)[:]-cross(transpose(ω)[:],I*transpose(ω)[:])))[:]
     
 end
-y0 = [1315.0823093944996, -6765.511976126983, 0.0,-0.9692300284946672, -0.1883992325643531, 7.540501269182395, 
-1.3219e8,-0.6101e8, -0.2645e8, 13.8614, 24.5178 ,  10.6295, 
-2.6183e5, 2.6184e5, 0.757e5, -0.7733, 0.6312, 0.2803,
-1,0,0,0,
-0.0,0.,0.] 
-tspan = (0.0,100000)
+y0 = [-1856.934, -6463.047, -613.214, 4.748, -0.817, -6.011, 
+1.4679e8,-0.2135e8, -0.0926e8, 5.1388, 27.0915 , 11.7445, 
+-1.8342e5, 3.4449e5, 1.0956e5, -0.8613, -0.4026, -0.1776,
+0.906, 0, 0.423, 0,
+0.,0.,0.1745] 
+
+tspan = (0.0,7000)
 prob = ODEProblem(KepCowell!,y0,tspan)
-sol = solve(prob, VCABM(), reltol=1e-8, abstol=1e-8, saveat = 10)#,  save_everystep=false)#saveat = 36000)
+sol = solve(prob, VCABM(), reltol=1e-10, abstol=1e-10, saveat = 10)#,  save_everystep=false)#saveat = 36000)
 
 tim = sol.t[:]
 R = transpose(sol[1:3,:])[:,:]
@@ -227,13 +235,15 @@ i = ones(length(tim),1)
 ν = ones(length(tim),1)
 Ω  =ones(length(tim),1)
 ω = ones(length(tim),1)
-
+#=
 for j in 1:1:length(tim)
     a[j],e_mod[j],i[j],Ω[j],ω[j],ν[j] = RVtoCOE(R[j,:],V[j,:])
     print(a[j],e_mod[j],i[j],Ω[j],ω[j],ν[j])
 end 
-#plot(tim, transpose(sol[23:25,:])[:,:], label = ["ωx" "ωy" "ωz"])
-plot(tim, transpose(sol[19:22,:])[:,:], label = ["q0" "q1" "q2" "q3"])
+=#
+plot(tim, transpose(sol[23:25,:])[:,:], label = ["ωx" "ωy" "ωz"])
+#plot(tim, transpose(sol[1:3,:])[:,:], label = ["x" "y" "z"])
+#plot(tim, transpose(sol[19:22,:])[:,:], label = ["q0" "q1" "q2" "q3"])
 #=
 p1 = plot(tim,a)
 p2 = plot(tim,e_mod)
