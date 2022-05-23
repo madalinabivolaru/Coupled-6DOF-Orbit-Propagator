@@ -2,21 +2,24 @@ using LinearAlgebra
 using OrdinaryDiffEq
 using DifferentialEquations
 using StaticArrays
-#using Plots
+using Plots
 using BenchmarkTools
 include("./PropagatorConstants.jl")
 using .PropagatorConstants
 #include("./JulDat.jl")
-#include("asrp.jl")
+include("asrp.jl")
 #include("RVtoCOE.jl")
 using DataFrames
 using CSV
+using CubicSplines
 
 
 function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
 
-    A = 0.7;
-    m = 400;
+    #A = 0.7;
+    #m = 400;
+    A = 12;
+    m = 7991#7991;
 
     #Reference densities for LEO
     rho0 = [3.735*10^-12, 1.585*10^-12,6.967*10^-13, 1.454*10^-13,
@@ -99,7 +102,7 @@ function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
 
     #Broadcast to existing arrays
     @. dr = v
-    @. dv = -r*PropagatorConstants.μ_e/r_norm^3 + a3m + a3s + a_d + a_J2 + a_J3 + a_J4 + asrp(rsun, r)  #Add aJ22 when ECEF to ECI solved
+    @. dv = -r*PropagatorConstants.μ_e/r_norm^3   + a_J2 + a_d#+a3m + a3s a_J3 + a_J4 + asrp(rsun, r)  #A+ a_d+dd aJ22 when ECEF to ECI solved
     @. drs = vsun
     @. dvs = -rsun*PropagatorConstants.μ_s/rsn^3
     @. drm = vmoon
@@ -108,14 +111,100 @@ function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
 end
 
 #Starting conditions
+#=
 y0 = [1315.0823093944996, -6765.511976126983, 0.0,-0.9692300284946672, -0.1883992325643531, 7.540501269182395, 
 1.3219e8,-0.6101e8, -0.2645e8, 13.8614, 24.5178 ,  10.6295, 
 2.6183e5, 2.6184e5, 0.757e5, -0.7733, 0.6312, 0.2803] 
+=#
+y0 = [-2.402809058043280E+03,  8.537777890343411E+02, -6.682371096072878E+03, -4.951358974727093E+00,  5.020450518834991E+00,  2.422381912322207E+00, 
+1.4640e8,-0.2335e8, -0.1012e8, 5.5763, 27.0266,  11.7162, 
+-1.1710e5, 3.6838e5, 1.2080e5, -0.9274, -0.2415,-0.1256]
 
 
-tspan = (0.0, 24*3600*365)
+y0 = [-2.402809058043280E+03,  8.537777890343411E+02, -6.682371096072878E+03, -4.951358974727093E+00,  5.020450518834991E+00,  2.422381912322207E+00,
+1.463957088922231e+08, -2.335131546485938e+07, -1.012403398015358e+07, 5.576319298565035, 27.026588503272446, 11.716155914748752,
+-1.170981644822336e+05, 3.683752523717154e+05, 1.208032774797189e+05, -0.927440482124745, -0.241519315834115, -0.125577393037498]
+#tspan = (0.0, 24*3600*365)
+tspan = (0.0, 3600*24*455)
 prob = ODEProblem(KepCowell!,y0,tspan)
-sol = solve(prob, VCABM(), reltol=1e-13, abstol=1e-13, save_everystep = false , maxiters = 1e8) #save_everystep = false
+@benchmark sol = solve(prob, VCABM(),  reltol=1e-13, abstol=1e-13, maxiters = 1e8)#, save_everystep = false)#save_at = 30*60) #save_everystep = false
+#=
+Th = sol.t[:]
+#Th = LinRange(8)
+AMATO = CSV.read("AMATO.csv", header=false, DataFrame)[1:182627,:]
+H3 =  CSV.read("horizons3.csv", header=false, DataFrame)[:,:]
+#Th = LinRange(0, 8928*300, 8929)
+Xsp = CubicSpline(AMATO[:,8],AMATO[:,2])
+Ysp = CubicSpline(AMATO[:,8],AMATO[:,3])
+Zsp = CubicSpline(AMATO[:,8],AMATO[:,4])
+vxsp = CubicSpline(AMATO[:,8],AMATO[:,5])
+vysp = CubicSpline(AMATO[:,8],AMATO[:,6])
+vzsp = CubicSpline(AMATO[:,8],AMATO[:,7])
+AMA = Xsp[Th]
+#plot(AMATO[:,8],AMATO[:,2])
+#l = @layout [a b; c d; e f]
 
-#plot(sol,vars=(1,2,3))
+l = @layout[a ;b;c]
+p1=plot(Th[:], abs.(sol(Th)[1,:] - Xsp[Th]), label = "rx", xlabel = "time, s", ylabel = "Position, km")
+p2=plot(Th[:], abs.( sol(Th)[2,:]- Ysp[Th]), label = "ry",xlabel = "time, s", ylabel = "Position, km")
+p3=plot(Th[:], abs.(sol(Th)[3,:]- Zsp[Th]), label = "rz",xlabel = "time, s", ylabel = "Position, km")
+p4=plot(Th[:], abs.(sol(Th)[4,:] - vxsp[Th]), label = "vx",xlabel = "time, s", ylabel = "velocity, km/s")
+p5=plot(Th[:], abs.(sol(Th)[5,:] - vysp[Th]), label = "vy",xlabel = "time, s", ylabel = "velocity, km/s")
+p6=plot(Th[:], abs.(sol(Th)[6,:] - vzsp[Th]), label = "vz",xlabel = "time, s", ylabel = "velocity, km/s")
+#plot(p1,p4,p2,p5,p3,p6,layout = l)
+plot(p1,p2,p3,layout = l)
+#plot(p1,p2,p3,layout = l)=#
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=
+X  = CSV.read("horizons2.csv", delim = ",", header=false, DataFrame)[1:20,1]
+T = LinRange(0, 2678400, 8929)
+plot(sol.t[1:1000],sol[1,1:1000])
+plot(T[1:20], X-sol(T)[1,1:20])=#
+#stp = 8929
+#=
+X  = CSV.read("horizons3.csv", delim = ",", header=false, DataFrame)[1:stp,1]
+Y  = CSV.read("horizons3.csv", delim = ",", header=false, DataFrame)[1:stp,2]
+Z  = CSV.read("horizons3.csv", delim = ",", header=false, DataFrame)[1:stp,3] 
+VX  = CSV.read("horizons3.csv", delim = ",", header=false, DataFrame)[1:stp,4]
+VY  = CSV.read("horizons3.csv", delim = ",", header=false, DataFrame)[1:stp,5]
+VZ  = CSV.read("horizons3.csv", delim = ",", header=false, DataFrame)[1:stp,6] =#
+#=
+X  = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,2]
+Y  = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,3]
+Z  = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,4] 
+VX  = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,5]
+VY  = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,6]
+VZ  = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,7] 
+T = CSV.read("AMATO.csv", delim = ",", header=false, DataFrame)[1:stp,8] =#
+#T = LinRange(0, 2678400, 8929)
+#plot(sol.t[1:1000],sol[1,1:1000])
+#l = @layout [a;b;c]
+#=
+p1 = plot(T[1:stp], X-sol(T)[1,1:stp], label = "x")
+p2 = plot(T[1:stp], Y-sol(T)[2,1:stp], label = "y")
+p3 = plot(T[1:stp], Z-sol(T)[3,1:stp], label = "z", title = "Diference wrt. true ephemerides", xlabel = "time, s", ylabel = "Position, km")
+=#
+#=
+plot(T[1:stp], X, label = "x")
+plot!(sol.t[1:stp], sol[1,1:stp], label = "y")
+=#
+#p3 = plot(T[1:stp], Z-sol(T)[3,1:stp], label = "z", title = "Diference wrt. true ephemerides", xlabel = "time, s", ylabel = "Position, km")
+#=
+
+p1 = plot(T[1:stp], 1000*(VX-sol(T)[4,1:stp]), label = "vx")
+p2 = plot(T[1:stp], 1000*(VY-sol(T)[5,1:stp]), label = "vy")
+p3 = plot(T[1:stp], 1000*(VZ-sol(T)[6,1:stp]), label = "vz")=#
+#plot(p1,p2,p3,layout=l , title = "Diference wrt. true ephemerides", xlabel = "time, s", ylabel = "Position, km")

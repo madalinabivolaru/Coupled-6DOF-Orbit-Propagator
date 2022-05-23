@@ -9,14 +9,15 @@ function asrp(rsun, rsat)
     
     SF = 1367
     P_srp = SF/3*10^-8;
+    #p_srp = (0.4560500000000E-05)*(PropagatorConstants.AUtoKM/norm(rsats))^2
     Cr = 1.2;
   
-    As = 2.22;
-    m = 100;
+    As = 12;
+    m = 7991;
     rsats = rsat - rsun
 
-    asrp = 10^(-3)*(P_srp*Cr*As/m)*rsats/norm(rsats)   #Initial model with fixed solar flux
-   
+    asrp = 10^(-3)*(P_srp*Cr*As/m).*rsats./norm(rsats)   #Initial model with fixed solar flux
+    #AMATO SRP_ACC = nu * pSRP * CR * A2M_SRP * (dSun/dSunNorm)
     #Normalise and obtain ratio of AU/rsun
     #d = PropagatorConstants.AUtoKM/norm(rsats)
     #rs = rsats/norm(rsats)

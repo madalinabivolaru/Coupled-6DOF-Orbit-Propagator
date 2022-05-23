@@ -1,7 +1,7 @@
 using LinearAlgebra
 using OrdinaryDiffEq
 using DifferentialEquations
-using StaticArrays
+#using StaticArrays
 using Plots
 using BenchmarkTools
 using LaTeXStrings
@@ -42,10 +42,10 @@ C = [c(θ)*c(ψ) c(θ)*s(ψ) -s(θ);
 =#
 
 #q = [c(ϕ)*c(θ)*c(ψ) - s(ϕ)*c(θ)*s(ψ), c(ϕ)*s(θ)*c(ψ) + s(ϕ)*s(θ)*s(ψ), c(ϕ)*s(θ)*s(ψ) s(ϕ)*s(θ)*c(ψ), c(ϕ)*c(θ)*s(ψ) + s(ϕ)*c(θ)*c(ψ)]
-
+#=
 C = [c(ϕ)*c(ψ) - s(ϕ)*c(θ)*s(ψ) c(ϕ)*s(ψ) + s(ϕ)*c(θ)*c(ψ) s(ϕ)*s(θ);
     -s(ϕ)*c(ψ) - c(ϕ)*c(θ)*s(ψ) -s(ϕ)*s(ψ) + c(ϕ)*c(θ)*c(ψ) c(ϕ)*s(θ);
-    s(θ)*s(ψ) -s(θ)*c(ψ) c(θ)]; #Cosine matrix for 313 Euler angles 
+    s(θ)*s(ψ) -s(θ)*c(ψ) c(θ)]; #Cosine matrix for 313 Euler angles =#
 
 #quaternion definition from C is checked against Schaub example
 #q = [0.5*sqrt(C[1,1]+C[2,2]+C[3,3]+1) 1/4/(0.5*sqrt(C[1,1]+C[2,2]+C[3,3]+1))*(C[2,3]-C[3,2]) 1/4/(0.5*sqrt(C[1,1]+C[2,2]+C[3,3]+1))*(C[3,1]-C[1,3]) 1/4/(0.5*sqrt(C[1,1]+C[2,2]+C[3,3]+1))*(C[1,2]-C[2,1])]
@@ -60,7 +60,7 @@ function Attitude!(dy,y,p,t)
     ω =  y[5:7]
 
     #Normalise quaternion    
-    q = q/norm(q)
+    #q = q/norm(q)
     ωx, ωy, ωz = ω[1:3]
 
     Ω = [0.0 -ωx -ωy -ωz;
@@ -85,6 +85,8 @@ function Attitude!(dy,y,p,t)
     vr  = [v[1]+0.7292*10^-4*r[2], v[2]-0.7292*10^-4*r[1], v[3]]
     v_r = norm(vr)
     Drag = 1000*[0.1,0,0].*(0.5*3.019*10^-15*2.2*1/100 * v_r^2 * vr/v_r);
+    Drag = [0,0,0]
+    TSP = [0,0,0]
 
     dy[1:4] = transpose(0.5 .* Ω* transpose(q)[:])[:]
     dy[5:7] = transpose(I^-1*(transpose(Tsp)[:]+transpose(Drag)[:]-cross(transpose(ω)[:],I*transpose(ω)[:])))[:]
@@ -93,31 +95,41 @@ function Attitude!(dy,y,p,t)
 end
 
 q = [1, 0, 0, 0]
-ω0 = [0, 0, 0]
-tspan = (0.0, 20)
+ω0 = [0, 0, 1]
+tspan = (0.0, 36000)
 y0 = [q; ω0]
 
 probA = ODEProblem(Attitude!,y0,tspan)
-sol = solve(probA, VCABM(), reltol=1e-11, abstol=1e-11, maxiters = 1e8)
+@benchmark sol2 = solve(probA, VCABM(), reltol=1e-11, abstol=1e-11, maxiters = 1e8)
 
-
-tim = sol.t[:]
-Q = transpose(sol[1:4,:])[:,:]
-W = transpose(sol[5:7,:])[:,:]
+#plot(tim, Q)
+#=
+plot(sol2.t[:], Q-transpose(sol2[1:4,:])[:,:])
+ylabel!(L"Quaternion Difference, (-)")
+xlabel!(L"Time, (s)") 
+=#
+#=
+tim = sol1.t[:]
+Q = transpose(sol1[1:4,:])[:,:]
+W = transpose(sol1[5:7,:])[:,:]=#
+#=
+tim = sol1.t[:]
+Q = transpose(sol1[1:4,:])[:,:]
+W = transpose(sol1[5:7,:])[:,:]
 
 qq = zeros(length(tim),3)
-Ww = zeros(length(tim),3)
+Ww = zeros(length(tim),3)=#
 #=
 for i in 1:1:length(Q[:,1])
     qq[i,:] .= broadcast(rad2deg,CosTo313(Beta2Cos(Q[i,:]./norm(Q[i,:]))))
     #println(CosTo313(Beta2Cos(Q[i,:]./norm(Q[i,:]))))
     #println(broadcast(rad2deg,CosTo313(Beta2Cos(Q[i,:]))))
-end =#
+end 
 
 for i in 1:1:length(W[:,1])
     Ww[i,:] .= W[i,:]
     #println(broadcast(rad2deg,W[i,:]))
-end 
+end =#
 #=
 for i in 1:1:length(W[:,1])
     #println(transpose(Ww[i,:])[:,:]*diagm([0.234375, 0.46875, 0.234375])*Ww[i,:])
@@ -125,10 +137,10 @@ for i in 1:1:length(W[:,1])
 end=#
 
 #plot(tim, W, label =[L"$q_0$" L"$q_1$" L"$q_2$" L"$q_3$"])
-plot(tim, W, label =[L"$\omega_x$" L"$\omega_y$" L"$\omega_z$"])
+#plot(tim, W, label =[L"$\omega_x$" L"$\omega_y$" L"$\omega_z$"])
 #ylabel!("Quaternion, (-)")
-ylabel!("Angular velocity, (rad/s)")
-xlabel!("Time, (s)")
+#ylabel!("Angular velocity, (rad/s)")
+#xlabel!("Time, (s)")
 #plot(sol.t[:],sol[1,:])
 #println((Beta2Cos(Q[26,:])))
 #println((CosTo321(transpose(Beta2Cos(Q[2,:]))[:,:])))

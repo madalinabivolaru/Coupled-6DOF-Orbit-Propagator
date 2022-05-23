@@ -62,7 +62,7 @@ function KepCowell!(dy::Vector{Float64},y::Vector{Float64},p,t)
     vsun = y[10:12]
     rmoon = y[13:15]
     vmoon = y[16:18]    
-    q = y[19:22]
+    q = y[19:22]/norm(y[19:22])
     ω = y[23:25]
 
     dr = dy[1:3] 
@@ -210,10 +210,10 @@ y0 = [1315.0823093944996, -6765.511976126983, 0.0,-0.9692300284946672, -0.188399
 2.6183e5, 2.6184e5, 0.757e5, -0.7733, 0.6312, 0.2803,
 1,0,0,0,
 0.0,0.,0.] 
-tspan = (0.0,100000)
+tspan = (0.0,3600*24*30)
 prob = ODEProblem(KepCowell!,y0,tspan)
-sol = solve(prob, VCABM(), reltol=1e-8, abstol=1e-8, saveat = 10)#,  save_everystep=false)#saveat = 36000)
-
+sol = solve(prob, VCABM(), reltol=1e-10, abstol=1e-10, saveat = 10)#,  save_everystep=false)#saveat = 36000)
+#=
 tim = sol.t[:]
 R = transpose(sol[1:3,:])[:,:]
 V = transpose(sol[4:6,:])[:,:]
@@ -228,7 +228,7 @@ for j in 1:1:length(tim)
     a[j],e_mod[j],i[j],Ω[j],ω[j],ν[j] = RVtoCOE(R[j,:],V[j,:])
     #print(a[j],e_mod[j],i[j],Ω[j],ω[j],ν[j])
 end 
-plot(tim, transpose(sol[23:25,:])[:,:], label = ["ωx" "ωy" "ωz"])
+plot(tim, transpose(sol[23:25,:])[:,:], label = ["ωx" "ωy" "ωz"])=#
 #plot(tim, transpose(sol[19:22,:])[:,:], label = ["q0" "q1" "q2" "q3"])
 #=
 p1 = plot(tim,a)

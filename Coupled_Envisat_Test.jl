@@ -222,10 +222,10 @@ y0 = [-1856.934, -6463.047, -613.214, 4.748, -0.817, -6.011,
 0.906, 0, 0.423, 0,
 0.,0.,0.1745] 
 
-tspan = (0.0,7000)
+tspan = (0.0,700000)
 prob = ODEProblem(KepCowell!,y0,tspan)
-sol = solve(prob, VCABM(), reltol=1e-10, abstol=1e-10, saveat = 10)#,  save_everystep=false)#saveat = 36000)
-
+@benchmark sol = solve(prob, VCABM(), reltol=1e-10, abstol=1e-10, save_everystep = false)#,  save_everystep=false)#saveat = 36000)
+#=
 tim = sol.t[:]
 R = transpose(sol[1:3,:])[:,:]
 V = transpose(sol[4:6,:])[:,:]
@@ -234,14 +234,14 @@ e_mod = ones(length(tim),1)
 i = ones(length(tim),1)
 ν = ones(length(tim),1)
 Ω  =ones(length(tim),1)
-ω = ones(length(tim),1)
+ω = ones(length(tim),1)=#
 #=
 for j in 1:1:length(tim)
     a[j],e_mod[j],i[j],Ω[j],ω[j],ν[j] = RVtoCOE(R[j,:],V[j,:])
     print(a[j],e_mod[j],i[j],Ω[j],ω[j],ν[j])
 end 
 =#
-plot(tim, transpose(sol[23:25,:])[:,:], label = ["ωx" "ωy" "ωz"])
+#plot(tim, transpose(sol[23:25,:])[:,:], label = ["ωx" "ωy" "ωz"])
 #plot(tim, transpose(sol[1:3,:])[:,:], label = ["x" "y" "z"])
 #plot(tim, transpose(sol[19:22,:])[:,:], label = ["q0" "q1" "q2" "q3"])
 #=
